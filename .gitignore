@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Large data files (too big for GitHub)
+real_estate_ads.csv
+tehran_properties_clean.csv
+model_training_data.csv
+
+# Temporary files
+*.tmp
+*.temp
+tehran_price_model.pkl
