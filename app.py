@@ -60,19 +60,27 @@ if model_loaded:
         5. 🅿️ Parking
         """)
     
+    # Tehran boundary (approximate)
+    TEHRAN_LAT_MIN, TEHRAN_LAT_MAX = 35.55, 35.85
+    TEHRAN_LON_MIN, TEHRAN_LON_MAX = 51.10, 51.65
+    
+    def is_in_tehran(lat, lon):
+        return (TEHRAN_LAT_MIN <= lat <= TEHRAN_LAT_MAX and 
+                TEHRAN_LON_MIN <= lon <= TEHRAN_LON_MAX)
+    
     # Two columns
     col1, col2 = st.columns([1, 1])
     
     with col1:
         st.subheader("📍 Step 1: Select Location")
-        st.caption("Click anywhere on the map OR enter coordinates manually")
+        st.caption("Click inside Tehran boundary on the map")
         
         # Manual coordinate input
         manual_col1, manual_col2 = st.columns(2)
         with manual_col1:
             input_lat = st.number_input("Latitude", min_value=35.55, max_value=35.85, value=35.72, step=0.001, format="%.4f")
         with manual_col2:
-            input_lon = st.number_input("Longitude", min_value=51.20, max_value=51.60, value=51.39, step=0.001, format="%.4f")
+            input_lon = st.number_input("Longitude", min_value=51.10, max_value=51.65, value=51.39, step=0.001, format="%.4f")
         
         # Create map - simple, clickable
         m = folium.Map(
@@ -80,6 +88,17 @@ if model_loaded:
             zoom_start=11,
             tiles='cartodbpositron'
         )
+        
+        # Add Tehran boundary rectangle
+        folium.Rectangle(
+            bounds=[[TEHRAN_LAT_MIN, TEHRAN_LON_MIN], [TEHRAN_LAT_MAX, TEHRAN_LON_MAX]],
+            color='#c4302b',
+            weight=3,
+            fill=True,
+            fillColor='#c4302b',
+            fillOpacity=0.05,
+            popup='Tehran Boundary - Click inside this area'
+        ).add_to(m)
         
         # Add click instruction
         folium.LatLngPopup().add_to(m)
@@ -106,14 +125,20 @@ if model_loaded:
         # Display map
         map_result = st_folium(m, height=350, width=None)
         
-        # Get clicked coordinates
+        # Get clicked coordinates with Tehran boundary check
         if map_result and map_result.get('last_clicked'):
             clicked_lat = map_result['last_clicked']['lat']
             clicked_lon = map_result['last_clicked']['lng']
-            st.success(f"✅ Clicked: **{clicked_lat:.4f}, {clicked_lon:.4f}**")
-            st.caption("👆 Copy these values to the Latitude/Longitude inputs above, then click Estimate")
-            final_lat = clicked_lat
-            final_lon = clicked_lon
+            
+            if is_in_tehran(clicked_lat, clicked_lon):
+                st.success(f"✅ Clicked: **{clicked_lat:.4f}, {clicked_lon:.4f}**")
+                final_lat = clicked_lat
+                final_lon = clicked_lon
+            else:
+                st.error(f"❌ Outside Tehran! Click inside the red boundary.")
+                st.caption(f"You clicked: {clicked_lat:.4f}, {clicked_lon:.4f}")
+                final_lat = input_lat
+                final_lon = input_lon
         else:
             final_lat = input_lat
             final_lon = input_lon
