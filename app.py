@@ -9,6 +9,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import gzip
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import Draw
@@ -23,7 +24,9 @@ st.set_page_config(
 # Load model and metadata
 @st.cache_resource
 def load_model():
-    model = joblib.load('tehran_price_model.pkl')
+    # Load compressed model
+    with gzip.open('tehran_price_model.pkl.gz', 'rb') as f:
+        model = joblib.load(f)
     metadata = joblib.load('model_metadata.pkl')
     return model, metadata
 
