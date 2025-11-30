@@ -267,6 +267,6 @@ st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: gray;'>
     <p>Built with ❤️ using Streamlit | Data from Divar.ir (1403)</p>
-    <p>Model: XGBoost | R² = 85.3% | 34 Features</p>
+    <p>Model: {metadata.get('model_type', 'XGBoost')} | R² = {metadata['test_r2']:.1%} | {len(metadata['feature_names'])} Features</p>
 </div>
 """, unsafe_allow_html=True)

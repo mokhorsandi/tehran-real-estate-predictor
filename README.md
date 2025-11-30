@@ -17,8 +17,9 @@ An interactive machine learning application that predicts property prices in Teh
 
 | Metric | Value |
 |--------|-------|
-| R² Score | 85% |
-| MAPE | 20.4% |
+| R² Score | 85.3% |
+| MAPE | 19.8% |
+| CV R² | 87.7% |
 | MAE | 2.1B Toman |
 
 ## 🔧 Tech Stack
