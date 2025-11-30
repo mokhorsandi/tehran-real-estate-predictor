@@ -83,7 +83,7 @@ The model includes features extracted from Farsi property descriptions:
 ## 👤 Author
 
 **Mohammad Ashtiani**
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/your-profile)
+- LinkedIn: [@mohammad-ashtiani](https://www.linkedin.com/in/mohammad-ashtiani-97769a22b/)
 - GitHub: [@mokhorsandi](https://github.com/mokhorsandi)
 
 ## 📄 License
