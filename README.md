@@ -82,9 +82,9 @@ The model includes features extracted from Farsi property descriptions:
 
 ## 👤 Author
 
-**Yasha Khorsandi**
+**Mohammad Ashtiani**
 - LinkedIn: [Your LinkedIn](https://linkedin.com/in/your-profile)
-- GitHub: [Your GitHub](https://github.com/your-username)
+- GitHub: [@mokhorsandi](https://github.com/mokhorsandi)
 
 ## 📄 License
 
