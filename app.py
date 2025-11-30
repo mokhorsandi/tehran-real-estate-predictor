@@ -181,8 +181,8 @@ if model_loaded:
     
     st.markdown("---")
     
-    # Predict button
-    if st.button("🔮 Predict Price", type="primary", use_container_width=True):
+    # Estimate button
+    if st.button("💰 Estimate Price", type="primary", use_container_width=True):
         # Prepare features in the correct order
         feature_values = {
             'size_sqm': size_sqm,
