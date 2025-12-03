@@ -1,7 +1,6 @@
 """
 Tehran Real Estate Price Prediction App
-========================================
-Click ANYWHERE on the map to select location, then get a price estimate.
+Mobile-friendly version with simplified UI
 """
 
 import streamlit as st
@@ -9,15 +8,30 @@ import pandas as pd
 import numpy as np
 import joblib
 import gzip
-import folium
-from streamlit_folium import st_folium
 
-# Page config
+# Page config - centered layout works better on mobile
 st.set_page_config(
-    page_title="Tehran Property Price Predictor",
+    page_title="Tehran Price Predictor",
     page_icon="🏠",
-    layout="wide"
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
+
+# Custom CSS for mobile
+st.markdown("""
+<style>
+    .stButton > button {
+        width: 100%;
+        height: 60px;
+        font-size: 20px;
+    }
+    .stMetric {
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Load model and metadata
 @st.cache_resource
@@ -42,171 +56,107 @@ except Exception as e:
 
 # Title
 st.title("🏠 Tehran Property Price Predictor")
+st.caption(f"Trained on 86,000+ listings | Accuracy: {metadata['test_r2']:.0%}" if model_loaded else "")
 
 if model_loaded:
-    # Sidebar
-    with st.sidebar:
-        st.header("📊 Model Info")
-        st.metric("Accuracy (R²)", f"{metadata['test_r2']:.1%}")
-        st.metric("Avg Error", f"±{metadata['test_mape']:.0f}%")
-        
-        st.markdown("---")
-        st.markdown("### 🔝 Price Factors")
-        st.markdown("""
-        1. 📍 Location
-        2. 📐 Size  
-        3. 🏗️ Age
-        4. 🛗 Elevator
-        5. 🅿️ Parking
-        """)
     
-    # Tehran boundary (approximate)
+    # Tehran boundary
     TEHRAN_LAT_MIN, TEHRAN_LAT_MAX = 35.55, 35.85
     TEHRAN_LON_MIN, TEHRAN_LON_MAX = 51.10, 51.65
     
-    def is_in_tehran(lat, lon):
-        return (TEHRAN_LAT_MIN <= lat <= TEHRAN_LAT_MAX and 
-                TEHRAN_LON_MIN <= lon <= TEHRAN_LON_MAX)
+    st.markdown("---")
     
-    # Two columns
-    col1, col2 = st.columns([1, 1])
+    # STEP 1: Location
+    st.subheader("📍 Step 1: Location")
     
+    # Neighborhood dropdown (easier on mobile than map)
+    neighborhood_list = sorted(neighborhoods_df['neighbourhood'].tolist())
+    selected_hood = st.selectbox(
+        "Select neighborhood:",
+        neighborhood_list,
+        index=neighborhood_list.index('tehranpars-sharghi') if 'tehranpars-sharghi' in neighborhood_list else 0
+    )
+    
+    # Get coordinates from selected neighborhood
+    hood_data = neighborhoods_df[neighborhoods_df['neighbourhood'] == selected_hood].iloc[0]
+    final_lat = hood_data['lat']
+    final_lon = hood_data['lon']
+    
+    st.info(f"📍 **{selected_hood}** - Median: {hood_data['median_price']/1e9:.1f}B Toman")
+    
+    # Optional: Manual coordinates
+    with st.expander("🔧 Advanced: Enter coordinates manually"):
+        col_lat, col_lon = st.columns(2)
+        with col_lat:
+            manual_lat = st.number_input("Latitude", min_value=35.55, max_value=35.85, value=float(final_lat), format="%.4f")
+        with col_lon:
+            manual_lon = st.number_input("Longitude", min_value=51.10, max_value=51.65, value=float(final_lon), format="%.4f")
+        
+        if st.checkbox("Use manual coordinates"):
+            final_lat = manual_lat
+            final_lon = manual_lon
+            st.success(f"Using: {final_lat:.4f}, {final_lon:.4f}")
+    
+    st.markdown("---")
+    
+    # STEP 2: Property Details
+    st.subheader("🏠 Step 2: Property Details")
+    
+    # Size and rooms on same row
+    col1, col2 = st.columns(2)
     with col1:
-        st.subheader("📍 Step 1: Select Location")
-        st.caption("Click inside Tehran boundary on the map")
-        
-        # Manual coordinate input
-        manual_col1, manual_col2 = st.columns(2)
-        with manual_col1:
-            input_lat = st.number_input("Latitude", min_value=35.55, max_value=35.85, value=35.72, step=0.001, format="%.4f")
-        with manual_col2:
-            input_lon = st.number_input("Longitude", min_value=51.10, max_value=51.65, value=51.39, step=0.001, format="%.4f")
-        
-        # Create map - simple, clickable
-        m = folium.Map(
-            location=[input_lat, input_lon],
-            zoom_start=11,
-            tiles='cartodbpositron'
-        )
-        
-        # Add Tehran boundary rectangle
-        folium.Rectangle(
-            bounds=[[TEHRAN_LAT_MIN, TEHRAN_LON_MIN], [TEHRAN_LAT_MAX, TEHRAN_LON_MAX]],
-            color='#c4302b',
-            weight=3,
-            fill=True,
-            fillColor='#c4302b',
-            fillOpacity=0.05,
-            popup='Tehran Boundary - Click inside this area'
-        ).add_to(m)
-        
-        # Add click instruction
-        folium.LatLngPopup().add_to(m)
-        
-        # Add current marker
-        folium.Marker(
-            location=[input_lat, input_lon],
-            popup=f"Current: {input_lat:.4f}, {input_lon:.4f}",
-            icon=folium.Icon(color='red', icon='home')
-        ).add_to(m)
-        
-        # Add neighborhood markers (smaller, non-blocking)
-        for _, row in neighborhoods_df.iterrows():
-            folium.CircleMarker(
-                location=[row['lat'], row['lon']],
-                radius=3,
-                color='blue',
-                fill=True,
-                fillOpacity=0.4,
-                weight=1,
-                popup=f"{row['neighbourhood']}"
-            ).add_to(m)
-        
-        # Display map
-        map_result = st_folium(m, height=350, width=None)
-        
-        # Get clicked coordinates with Tehran boundary check
-        if map_result and map_result.get('last_clicked'):
-            clicked_lat = map_result['last_clicked']['lat']
-            clicked_lon = map_result['last_clicked']['lng']
-            
-            if is_in_tehran(clicked_lat, clicked_lon):
-                st.success(f"✅ Clicked: **{clicked_lat:.4f}, {clicked_lon:.4f}**")
-                final_lat = clicked_lat
-                final_lon = clicked_lon
-            else:
-                st.error(f"❌ Outside Tehran! Click inside the red boundary.")
-                st.caption(f"You clicked: {clicked_lat:.4f}, {clicked_lon:.4f}")
-                final_lat = input_lat
-                final_lon = input_lon
-        else:
-            final_lat = input_lat
-            final_lon = input_lon
-        
-        # Show which coordinates will be used
-        st.info(f"📍 Using: **Lat {final_lat:.4f}, Lon {final_lon:.4f}**")
-        
-        # Find nearest neighborhood
-        distances = np.sqrt(
-            (neighborhoods_df['lat'] - final_lat)**2 + 
-            (neighborhoods_df['lon'] - final_lon)**2
-        )
-        nearest_idx = distances.idxmin()
-        nearest = neighborhoods_df.loc[nearest_idx]
-        st.caption(f"Nearest neighborhood: **{nearest['neighbourhood']}** (median: {nearest['median_price']/1e9:.1f}B)")
-    
+        size_sqm = st.number_input("Size (sqm)", min_value=20, max_value=1000, value=100)
     with col2:
-        st.subheader("🏠 Step 2: Property Details")
-        
-        # Core features
-        c1, c2 = st.columns(2)
-        with c1:
-            size_sqm = st.number_input("Size (sqm)", min_value=20, max_value=1000, value=100)
-            rooms = st.selectbox("Bedrooms", [0, 1, 2, 3, 4, 5], index=2)
-            floor = st.number_input("Floor", min_value=0, max_value=30, value=3)
-        
-        with c2:
-            total_floors = st.number_input("Total Floors", min_value=1, max_value=50, value=5)
-            construction_year = st.number_input("Year Built (Shamsi)", min_value=1370, max_value=1403, value=1395)
-            building_age = 1403 - construction_year
-            st.caption(f"Age: {building_age} years")
-        
-        # Amenities
-        st.markdown("**Amenities:**")
-        amenity_cols = st.columns(4)
-        with amenity_cols[0]:
-            has_elevator = st.checkbox("🛗 Elevator", value=True)
-            has_parking = st.checkbox("🅿️ Parking", value=True)
-            has_storage = st.checkbox("📦 Storage", value=True)
-        with amenity_cols[1]:
-            has_balcony = st.checkbox("🌿 Balcony")
-            has_lobby = st.checkbox("🏛️ Lobby")
-            is_north_facing = st.checkbox("⬆️ North Facing")
-        with amenity_cols[2]:
-            is_luxury = st.checkbox("✨ Luxury")
-            is_renovated = st.checkbox("🔨 Renovated")
-            is_well_lit = st.checkbox("☀️ Well Lit")
-        with amenity_cols[3]:
-            has_view = st.checkbox("🏙️ View")
-            is_newly_built = st.checkbox("🆕 New Build")
-            has_roof_garden = st.checkbox("🌳 Roof Garden")
-        
-        # Extra (hidden defaults)
-        has_caretaker = False
-        has_video_intercom = False
-        has_remote_door = False
-        is_fully_equipped = False
-        is_never_used = False
-        has_good_layout = False
-        has_single_deed = False
-        has_built_in_closet = False
+        rooms = st.selectbox("Bedrooms", [0, 1, 2, 3, 4, 5], index=2)
+    
+    # Floor and age
+    col3, col4 = st.columns(2)
+    with col3:
+        floor = st.number_input("Floor", min_value=0, max_value=30, value=3)
+        total_floors = st.number_input("Total floors", min_value=1, max_value=50, value=5)
+    with col4:
+        construction_year = st.number_input("Year built (Shamsi)", min_value=1370, max_value=1403, value=1395)
+        building_age = 1403 - construction_year
+        st.caption(f"🏗️ Age: {building_age} years")
+    
+    st.markdown("---")
+    
+    # STEP 3: Amenities (simplified for mobile)
+    st.subheader("🔧 Step 3: Amenities")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        has_elevator = st.checkbox("🛗 Elevator", value=True)
+        has_parking = st.checkbox("🅿️ Parking", value=True)
+        has_storage = st.checkbox("📦 Storage", value=True)
+        has_balcony = st.checkbox("🌿 Balcony")
+        has_lobby = st.checkbox("🏛️ Lobby")
+        is_north_facing = st.checkbox("⬆️ North Facing")
+    
+    with col_b:
+        is_luxury = st.checkbox("✨ Luxury")
+        is_renovated = st.checkbox("🔨 Renovated")
+        is_well_lit = st.checkbox("☀️ Well Lit")
+        has_view = st.checkbox("🏙️ Has View")
+        is_newly_built = st.checkbox("🆕 Newly Built")
+        has_roof_garden = st.checkbox("🌳 Roof Garden")
+    
+    # Hidden defaults
+    has_caretaker = False
+    has_video_intercom = False
+    has_remote_door = False
+    is_fully_equipped = False
+    is_never_used = False
+    has_good_layout = False
+    has_single_deed = False
+    has_built_in_closet = False
     
     st.markdown("---")
     
     # ESTIMATE BUTTON
-    if st.button("💰 ESTIMATE PRICE", type="primary", use_container_width=True):
+    if st.button("💰 ESTIMATE PRICE", type="primary"):
         
-        # Build feature dict
+        # Build features
         feature_values = {
             'size_sqm': size_sqm,
             'rooms': rooms,
@@ -244,7 +194,7 @@ if model_loaded:
             'has_remote_door': int(has_remote_door)
         }
         
-        # Create array in correct order
+        # Create array
         X_pred = np.array([[feature_values[f] for f in metadata['feature_names']]])
         
         # Predict
@@ -253,28 +203,37 @@ if model_loaded:
         
         # Results
         st.markdown("---")
-        st.header("💰 Price Estimate")
+        st.header("💰 Estimated Price")
         
-        res_cols = st.columns(3)
-        with res_cols[0]:
-            st.metric("Total Price", f"{prediction/1e9:.2f} Billion Toman")
-        with res_cols[1]:
-            st.metric("Per sqm", f"{prediction/size_sqm/1e6:.1f} Million Toman")
-        with res_cols[2]:
-            hood_median = nearest['median_price']
-            diff = ((prediction - hood_median) / hood_median) * 100
-            st.metric(f"vs {nearest['neighbourhood']}", f"{diff:+.0f}%")
+        # Main price - big and clear
+        st.markdown(f"""
+        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 15px; margin: 10px 0;">
+            <h1 style="color: white; margin: 0; font-size: 2.5em;">{prediction/1e9:.2f} Billion Toman</h1>
+            <p style="color: #ddd; margin: 5px 0;">≈ {prediction/size_sqm/1e6:.1f}M per sqm</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         # Range
         mape = metadata['test_mape'] / 100
         lower = prediction * (1 - mape)
         upper = prediction * (1 + mape)
-        st.success(f"**Estimated Range:** {lower/1e9:.2f} - {upper/1e9:.2f} Billion Toman")
         
-        st.caption(f"📍 Location: {final_lat:.4f}, {final_lon:.4f} | 📐 {size_sqm}sqm | 🛏️ {rooms} rooms | 🏗️ {building_age}yr old")
+        st.success(f"**Range:** {lower/1e9:.2f} - {upper/1e9:.2f} Billion Toman (±{metadata['test_mape']:.0f}%)")
+        
+        # Comparison with neighborhood
+        hood_median = hood_data['median_price']
+        diff = ((prediction - hood_median) / hood_median) * 100
+        
+        if diff > 0:
+            st.info(f"📊 **{diff:+.0f}%** compared to {selected_hood} median ({hood_median/1e9:.1f}B)")
+        else:
+            st.info(f"📊 **{diff:.0f}%** compared to {selected_hood} median ({hood_median/1e9:.1f}B)")
+        
+        # Summary
+        st.caption(f"📐 {size_sqm}sqm | 🛏️ {rooms} rooms | 🏢 Floor {floor}/{total_floors} | 🏗️ {building_age} years old")
 
 else:
-    st.error("Model files not found.")
+    st.error("⚠️ Could not load model. Please try again later.")
 
 # Footer
 st.markdown("---")
