@@ -1,6 +1,6 @@
 # 🏠 Tehran Real Estate Price Predictor
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://your-app-url.streamlit.app)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://tehran-real-estate-predictor-ifv6i8mfgmdwz59auohcrb.streamlit.app/)
 
 An interactive machine learning application that predicts property prices in Tehran based on location, size, amenities, and other features. Built with real data from Divar.ir (86,000+ listings).
 
